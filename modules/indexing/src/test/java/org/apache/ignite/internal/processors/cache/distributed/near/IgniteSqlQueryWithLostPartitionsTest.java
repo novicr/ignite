@@ -18,6 +18,7 @@ package org.apache.ignite.internal.processors.cache.distributed.near;
 
 
 import org.apache.ignite.IgniteCache;
+import org.apache.ignite.cache.PartitionLossPolicy;
 import org.apache.ignite.cache.query.SqlQuery;
 import org.apache.ignite.cache.query.annotations.QuerySqlField;
 import org.apache.ignite.configuration.CacheConfiguration;
@@ -144,7 +145,9 @@ public class IgniteSqlQueryWithLostPartitionsTest extends GridCommonAbstractTest
     @NotNull
     private IgniteCache<Integer, C1> setupCaches() {
         CacheConfiguration<Integer, C1> c1Conf = new CacheConfiguration<Integer, C1>("C1")
-                .setIndexedTypes(Integer.class, C1.class).setBackups(1);
+                .setIndexedTypes(Integer.class, C1.class)
+                .setBackups(1)
+                .setPartitionLossPolicy(PartitionLossPolicy.READ_ONLY_SAFE);
 
         final IgniteCache<Integer, C1> cache = grid(0).getOrCreateCache(c1Conf);
 
