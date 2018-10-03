@@ -38,6 +38,10 @@ import org.jetbrains.annotations.Nullable;
  */
 public enum PartitionLossPolicy {
     /**
+     * All read/write requests to the cache will be failed with an exception.
+     */
+    READ_WRITE_NONE,
+    /**
      * All writes to the cache will be failed with an exception, reads will only be allowed for keys in
      * non-lost partitions. Reads from lost partitions will be failed with an exception.
      */

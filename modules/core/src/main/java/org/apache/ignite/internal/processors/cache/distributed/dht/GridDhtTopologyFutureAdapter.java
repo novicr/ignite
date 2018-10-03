@@ -34,6 +34,7 @@ import org.jetbrains.annotations.Nullable;
 import static org.apache.ignite.cache.PartitionLossPolicy.READ_ONLY_ALL;
 import static org.apache.ignite.cache.PartitionLossPolicy.READ_ONLY_SAFE;
 import static org.apache.ignite.cache.PartitionLossPolicy.READ_WRITE_ALL;
+import static org.apache.ignite.cache.PartitionLossPolicy.READ_WRITE_NONE;
 import static org.apache.ignite.cache.PartitionLossPolicy.READ_WRITE_SAFE;
 
 /**
@@ -92,6 +93,11 @@ public abstract class GridDhtTopologyFutureAdapter extends GridFutureAdapter<Aff
         PartitionLossPolicy partLossPlc = grp.config().getPartitionLossPolicy();
 
         if (grp.needsRecovery() && !recovery) {
+            if (partLossPlc == READ_WRITE_NONE) {
+                return new IgniteCheckedException("Failed to access cache (cache is not in an accessible state): " +
+                    cctx.name());
+            }
+
             if (!read && (partLossPlc == READ_ONLY_SAFE || partLossPlc == READ_ONLY_ALL))
                 return new IgniteCheckedException("Failed to write to cache (cache is moved to a read-only state): " +
                     cctx.name());

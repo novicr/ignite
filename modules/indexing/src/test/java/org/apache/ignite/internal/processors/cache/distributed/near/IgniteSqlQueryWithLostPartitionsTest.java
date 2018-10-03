@@ -101,21 +101,6 @@ public class IgniteSqlQueryWithLostPartitionsTest extends GridCommonAbstractTest
         protected Integer id;
     }
 
-    /** */
-    public static class C2 implements Serializable {
-        /** */
-        private static final long serialVersionUID = 1L;
-
-        /** */
-        C2(int id) {
-            this.id = id;
-        }
-
-        /** */
-        @QuerySqlField(index = true)
-        protected Integer id;
-    }
-
     /**
      * @throws Exception If failed.
      */
@@ -133,9 +118,7 @@ public class IgniteSqlQueryWithLostPartitionsTest extends GridCommonAbstractTest
     private void doQueryWithPartialData() throws InterruptedException {
         final IgniteCache<Integer, C1> cache = setupCaches();
 
-        String sql = "SELECT C1.*" +
-                " from C1 inner join \"C2\".C2 as D on C1.id = D.id" +
-                " order by C1.id asc";
+        String sql = "SELECT C1.* from C1 order by C1.id asc";
 
         SqlQuery<Integer, C1> qry = new SqlQuery<>(C1.class, sql);
 
@@ -163,16 +146,10 @@ public class IgniteSqlQueryWithLostPartitionsTest extends GridCommonAbstractTest
         CacheConfiguration<Integer, C1> c1Conf = new CacheConfiguration<Integer, C1>("C1")
                 .setIndexedTypes(Integer.class, C1.class).setBackups(1);
 
-        CacheConfiguration<Integer, C2> c2Conf = new CacheConfiguration<Integer, C2>("C2")
-                .setIndexedTypes(Integer.class, C2.class).setBackups(1);
-
         final IgniteCache<Integer, C1> cache = grid(0).getOrCreateCache(c1Conf);
-        final IgniteCache<Integer, C2> cache1 = grid(0).getOrCreateCache(c2Conf);
 
         for (int i = 0; i < 1000; i++) {
             cache.put(i, new C1(i));
-
-            cache1.put(i, new C2(i));
         }
         return cache;
     }

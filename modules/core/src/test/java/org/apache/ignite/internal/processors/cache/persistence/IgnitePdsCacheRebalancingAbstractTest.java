@@ -95,6 +95,7 @@ public abstract class IgnitePdsCacheRebalancingAbstractTest extends GridCommonAb
 
         CacheConfiguration ccfg1 = cacheConfiguration(CACHE)
             .setPartitionLossPolicy(PartitionLossPolicy.READ_WRITE_SAFE)
+            .setPartitionLossPolicy(PartitionLossPolicy.READ_WRITE_NONE)
             .setBackups(2)
             .setRebalanceMode(CacheRebalanceMode.ASYNC)
             .setIndexedTypes(Integer.class, Integer.class)

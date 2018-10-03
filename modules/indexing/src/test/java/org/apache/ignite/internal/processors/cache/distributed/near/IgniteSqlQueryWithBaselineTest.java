@@ -148,6 +148,17 @@ public class IgniteSqlQueryWithBaselineTest extends GridCommonAbstractTest {
     }
 
     /**
+     * @throws Exception If failed.
+     */
+    public void testQueryWithPartialData() throws Exception {
+        startGrids(4);
+
+        grid(0).cluster().active(true);
+
+        doQueryWithPartialData();
+    }
+
+    /**
      *
      */
     private void doQuery() {
@@ -180,5 +191,50 @@ public class IgniteSqlQueryWithBaselineTest extends GridCommonAbstractTest {
         Collection<Cache.Entry<Integer, C1>> res = cache.query(qry).getAll();
 
         log.info("result size: " + res.size());
+    }
+
+    /**
+     *
+     */
+    private void doQueryWithPartialData() throws InterruptedException {
+        CacheConfiguration<Integer, C1> c1Conf = new CacheConfiguration<>("C1");
+        c1Conf.setIndexedTypes(Integer.class, C1.class).setBackups(1);
+
+        CacheConfiguration<Integer, C2> c2Conf = new CacheConfiguration<>("C2");
+        c2Conf.setIndexedTypes(Integer.class, C2.class).setBackups(1);
+
+        final IgniteCache<Integer, C1> cache = grid(0).getOrCreateCache(c1Conf);
+
+        final IgniteCache<Integer, C2> cache1 = grid(0).getOrCreateCache(c2Conf);
+
+        for (int i = 0; i < 1000; i++) {
+            cache.put(i, new C1(i));
+
+            cache1.put(i, new C2(i));
+        }
+
+        String sql = "SELECT C1.*" +
+                " from C1 inner join \"C2\".C2 as D on C1.id = D.id" +
+                " order by C1.id asc";
+
+        SqlQuery<Integer, C1> qry = new SqlQuery<>(C1.class, sql);
+
+        qry.setDistributedJoins(true);
+
+        log.info("before query run...");
+
+        Collection<Cache.Entry<Integer, C1>> res = cache.query(qry).getAll();
+
+        log.info("result size: " + res.size());
+
+        stopGrid(1);
+        stopGrid(2);
+        awaitPartitionMapExchange();
+
+        Collection<Cache.Entry<Integer, C1>> resPartial = cache.query(qry).getAll();
+
+        log.info("result size: " + resPartial.size());
+
+
     }
 }
