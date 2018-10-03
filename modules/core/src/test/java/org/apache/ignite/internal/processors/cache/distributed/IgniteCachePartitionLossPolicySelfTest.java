@@ -28,14 +28,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.cache.Cache;
 import javax.cache.CacheException;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.cache.PartitionLossPolicy;
 import org.apache.ignite.cache.affinity.Affinity;
 import org.apache.ignite.cache.affinity.rendezvous.RendezvousAffinityFunction;
-import org.apache.ignite.cache.query.ScanQuery;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
 import org.apache.ignite.events.CacheRebalancingEvent;
@@ -176,37 +174,6 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
     /**
      * @throws Exception if failed.
      */
-    public void testReadWriteNone() throws Exception {
-        partLossPlc = PartitionLossPolicy.READ_WRITE_NONE;
-
-        checkLostPartition(false, false, true, killSingleNode);
-    }
-
-    /**
-     * @throws Exception if failed.
-     */
-    public void testReadWriteNoneAfterKillTwoNodes() throws Exception {
-        partLossPlc = PartitionLossPolicy.READ_WRITE_NONE;
-
-        backups = 1;
-
-        checkLostPartition(false, false, true, new TopologyChanger(false, Arrays.asList(3, 2), Arrays.asList(0, 1, 4), 0));
-    }
-
-    /**
-     * @throws Exception if failed.
-     */
-    public void testReadWriteNoneAfterKillTwoNodesWithDelay() throws Exception {
-        partLossPlc = PartitionLossPolicy.READ_WRITE_NONE;
-
-        backups = 1;
-
-        checkLostPartition(false, false, true, new TopologyChanger(false, Arrays.asList(3, 2), Arrays.asList(0, 1, 4), 20));
-    }
-
-    /**
-     * @throws Exception if failed.
-     */
     public void testReadWriteSafeAfterKillTwoNodes() throws Exception {
         partLossPlc = PartitionLossPolicy.READ_WRITE_SAFE;
 
@@ -297,17 +264,6 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
      * @throws Exception if failed.
      */
     private void checkLostPartition(boolean canWrite, boolean safe, TopologyChanger topChanger) throws Exception {
-        checkLostPartition(true, canWrite, safe, topChanger);
-    }
-
-    /**
-     * @param canRead {@code True} if reads are allowed.
-     * @param canWrite {@code True} if writes are allowed.
-     * @param safe {@code True} if lost partition should trigger exception.
-     * @param topChanger topology changer.
-     * @throws Exception if failed.
-     */
-    private void checkLostPartition(boolean canRead, boolean canWrite, boolean safe, TopologyChanger topChanger) throws Exception {
         assert partLossPlc != null;
 
         int part = topChanger.changeTopology().get(0);
@@ -333,10 +289,7 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
 
             IgniteCache<Integer, Integer> cache = ig.cache(CACHE_NAME);
 
-            assert cache.metrics().isValidForReading() == canRead;
-            assert cache.metrics().isValidForWriting() == canWrite;
-
-            verifyCacheOps(canRead, canWrite, safe, part, ig);
+            verifyCacheOps(canWrite, safe, part, ig);
 
             // Check we can read and write to lost partition in recovery mode.
             IgniteCache<Integer, Integer> recoverCache = cache.withPartitionRecover();
@@ -347,7 +300,7 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
             }
 
             // Check that writing in recover mode does not clear partition state.
-            verifyCacheOps(canRead, canWrite, safe, part, ig);
+            verifyCacheOps(canWrite, safe, part, ig);
 
             // Validate queries.
             validateQuery(safe, part, ig);
@@ -359,7 +312,7 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
         info("Newly started node: " + grd.cluster().localNode().id());
 
         for (Ignite ig : G.allGrids())
-            verifyCacheOps(canRead, canWrite, safe, part, ig);
+            verifyCacheOps(canWrite, safe, part, ig);
 
         ignite(4).resetLostPartitions(Collections.singletonList(CACHE_NAME));
 
@@ -382,13 +335,12 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
 
     /**
      *
-     * @param canRead
      * @param canWrite {@code True} if writes are allowed.
      * @param safe {@code True} if lost partition should trigger exception.
      * @param part Lost partition ID.
      * @param ig Ignite instance.
      */
-    private void verifyCacheOps(boolean canRead, boolean canWrite, boolean safe, int part, Ignite ig) {
+    private void verifyCacheOps(boolean canWrite, boolean safe, int part, Ignite ig) {
         IgniteCache<Integer, Integer> cache = ig.cache(CACHE_NAME);
 
         Collection<Integer> lost = cache.lostPartitions();
@@ -412,11 +364,9 @@ public class IgniteCachePartitionLossPolicySelfTest extends GridCommonAbstractTe
                     assertEquals((Integer)i, actual);
             }
             catch (CacheException e) {
-                if (canRead) {
-                    assertTrue("Read exception should only be triggered in safe mode: " + e, safe);
-                    assertTrue("Read exception should only be triggered for a lost partition " +
-                        "[ex=" + e + ", part=" + i + ']', cache.lostPartitions().contains(i));
-                }
+                assertTrue("Read exception should only be triggered in safe mode: " + e, safe);
+                assertTrue("Read exception should only be triggered for a lost partition " +
+                    "[ex=" + e + ", part=" + i + ']', cache.lostPartitions().contains(i));
             }
         }
 
